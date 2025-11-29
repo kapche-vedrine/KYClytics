@@ -1,0 +1,109 @@
+Build a full-stack web app called KYClytics that automates KYC onboarding, risk scoring, and review scheduling. The app must be visually attractive (modern, clean UI, tasteful animations) and highly interactive (live validation, dynamic chips/badges, charts, filters).
+
+1) Architecture & Repo
+
+Monorepo with two folders: /server and /web.
+
+Backend (/server): Node.js + Express + TypeScript, Prisma ORM, SQLite (dev), Zod (validation), Multer (uploads), node-cron (scheduler), JWT (auth), Bcrypt (passwords), Winston (logging).
+
+Frontend (/web): React + TypeScript + Vite, React Router, React Query, Tailwind CSS, react-hook-form + Zod, Axios, Framer Motion (subtle animations), Recharts (charts).
+
+Provide a top-level README with setup/run instructions.
+
+2) Core Features (must-have)
+
+Auth & RBAC: Login with JWT. Roles: ADMIN, COMPLIANCE_OFFICER. Role guards on API and hidden/disabled UI actions.
+
+Client Onboarding: Form with live validation. Fields: firstName, lastName, dob, address, country, postalCode, job, industry, pep (checkbox). Upload documents (PDF/JPG/PNG ≤ 15 MB). Store file metadata + SHA-256 checksum.
+
+Risk Engine (deterministic): Start at 0, add: PEP +30, High-risk country +20, High-risk industry +20, Cash-intensive job +10. Bands: GREEN 0–24, YELLOW 25–44, RED ≥45. Return {score, band, breakdown} and persist history.
+
+Scheduling: Next review = GREEN 24 months, YELLOW 12 months, RED 6 months (recompute on update/rescore).
+
+Nightly scheduler (02:00): Mark DUE_SOON when 0–30 days left; OVERDUE when past due; write AuditLog.
+
+Dashboard: Table with search + filters (risk band, status). Colored chips for band/status. Column for next review date.
+
+Client Detail: Show score, band, breakdown chips, documents list (upload/download), edit fields, “Rescore” button.
+
+Admin: Manage rule weights and lookup lists (CountryRisk, IndustryRisk). (Simple CRUD pages.)
+
+Audit Viewer: Paginated list of actions (CREATE/UPDATE/SCORE/SCHEDULE/UPLOAD_DOC/LOGIN) with actor, target, timestamp.
+
+3) Data Model (Prisma)
+
+Models: User, Client, Document, RiskScoreHistory, ReviewSchedule, AuditLog, CountryRisk, IndustryRisk.
+Enumerations: RiskBand { GREEN, YELLOW, RED }, ReviewStatus { OK, DUE_SOON, OVERDUE }, document type enum { ID, PROOF_OF_RESIDENCE }.
+
+4) API (Express)
+
+Auth: POST /api/auth/login (returns JWT), GET /api/auth/me.
+
+Clients: POST /api/clients, GET /api/clients?riskBand&status&search, GET /api/clients/:id, PUT /api/clients/:id, POST /api/clients/:id/rescore.
+
+Documents: POST /api/clients/:id/documents (multipart), GET /api/clients/:id/documents/:docId/download (safe stream).
+
+Schedules: GET /api/schedules/due-soon.
+
+Admin: GET/POST /api/admin/country-risk, GET/POST /api/admin/industry-risk, GET/POST /api/admin/rules.
+
+Audit: GET /api/audit?targetType&targetId.
+Use Zod schemas for all requests. Return consistent error objects {message, issues[]}.
+
+5) Attractive & Interactive UI (requirements)
+
+Tailwind design system: soft cards, rounded corners (xl/2xl), spacious paddings, responsive layout.
+
+Framer Motion for subtle transitions on table rows, chips appearing, and form success toasts.
+
+Recharts bar chart on Dashboard for band distribution (GREEN/YELLOW/RED).
+
+Badges/chips with clear colors: GREEN/YELLOW/RED for bands, and OK/DUE_SOON/OVERDUE for status.
+
+Client form shows live risk preview (score, band, breakdown chips) as fields change—before submitting.
+
+6) Security & Validation
+
+JWT auth, Bcrypt hashing, Helmet, CORS locked to web origin, rate-limit auth & uploads.
+
+Multer: size limit 15 MB; whitelist MIME types; sanitize filenames; store under /server/uploads/<clientId>/.
+
+Compute and store SHA-256 for each uploaded file.
+
+Audit log is append-only (no updates/deletes).
+
+7) DX & Scripts
+
+Root scripts to run both apps concurrently: npm run dev.
+
+/server: prisma migrate dev, prisma db seed, dev (ts-node-dev), test (Jest), build, start.
+
+/web: dev, build, preview.
+
+Provide .env.example files for both.
+
+8) Seed & Demo
+
+Seed admin user: admin@example.com / Passw0rd! (hashed).
+
+Seed 10 demo clients across the three bands, plus sample CountryRisk/IndustryRisk lookup data.
+
+Include a few mock documents (empty placeholders) to showcase the UI.
+
+9) Tests & Acceptance
+
+Unit tests: risk engine (various inputs → expected score/band), scheduler status transitions.
+
+API tests: clients CRUD, upload constraints, auth.
+
+Acceptance criteria (must pass):
+
+Creating/editing a client recomputes score, band, next review.
+
+Dashboard filters combine (band + status + search) correctly.
+
+Nightly scheduler updates statuses and writes AuditLog.
+
+Document uploads reject >15MB or non-PDF/JPG/PNG.
+
+Admin can change weights; rescore reflects new weights.
