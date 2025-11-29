@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useStore } from "@/lib/mock-data";
-import { calculateRisk, HIGH_RISK_COUNTRIES, HIGH_RISK_INDUSTRIES, CASH_INTENSIVE_JOBS } from "@/lib/risk-engine";
+import { calculateRisk, ALL_COUNTRIES, ALL_INDUSTRIES } from "@/lib/risk-engine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,8 +14,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { RiskBadge } from "@/components/ui/risk-badge";
-import { ArrowLeft, Save, Upload, FileText, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, Upload, FileText, AlertCircle, Download, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const clientSchema = z.object({
   firstName: z.string().min(2, "First name required"),
@@ -33,7 +34,7 @@ export default function ClientDetailPage() {
   const [, params] = useRoute("/clients/:id");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { clients, addClient, updateClient } = useStore();
+  const { clients, addClient, updateClient, riskConfig } = useStore();
   
   const isNew = params?.id === "new";
   const existingClient = clients.find(c => c.id === params?.id);
@@ -60,7 +61,7 @@ export default function ClientDetailPage() {
     country: watchedValues.country || "",
     industry: watchedValues.industry || "",
     job: watchedValues.job || "",
-  });
+  }, riskConfig);
 
   function onSubmit(data: z.infer<typeof clientSchema>) {
     if (isNew) {
@@ -72,6 +73,21 @@ export default function ClientDetailPage() {
       toast({ title: "Client Updated", description: "Risk score and schedule updated." });
     }
   }
+
+  const handleDownload = (filename: string) => {
+    toast({
+      title: "Downloading Document",
+      description: `Starting download for ${filename}...`,
+    });
+    // Mock download delay
+    setTimeout(() => {
+       toast({
+        title: "Download Complete",
+        description: `${filename} has been saved to your device.`,
+        variant: "default",
+      });
+    }, 1500);
+  };
 
   if (!isNew && !existingClient) {
     return <div>Client not found</div>;
@@ -187,11 +203,13 @@ export default function ClientDetailPage() {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  <SelectItem value="United Kingdom">United Kingdom</SelectItem>
-                                  <SelectItem value="USA">USA</SelectItem>
-                                  {HIGH_RISK_COUNTRIES.map(c => (
-                                    <SelectItem key={c} value={c}>{c} (High Risk)</SelectItem>
-                                  ))}
+                                  <ScrollArea className="h-[200px]">
+                                    {ALL_COUNTRIES.map(c => (
+                                      <SelectItem key={c} value={c}>
+                                        {c} {riskConfig.highRiskCountries.includes(c) ? "(High Risk)" : ""}
+                                      </SelectItem>
+                                    ))}
+                                  </ScrollArea>
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -225,11 +243,13 @@ export default function ClientDetailPage() {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  <SelectItem value="Technology">Technology</SelectItem>
-                                  <SelectItem value="Retail">Retail</SelectItem>
-                                  {HIGH_RISK_INDUSTRIES.map(i => (
-                                    <SelectItem key={i} value={i}>{i} (High Risk)</SelectItem>
-                                  ))}
+                                  <ScrollArea className="h-[200px]">
+                                    {ALL_INDUSTRIES.map(i => (
+                                      <SelectItem key={i} value={i}>
+                                        {i} {riskConfig.highRiskIndustries.includes(i) ? "(High Risk)" : ""}
+                                      </SelectItem>
+                                    ))}
+                                  </ScrollArea>
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -291,7 +311,8 @@ export default function ClientDetailPage() {
                   
                   <div className="mt-6 space-y-3">
                     <h4 className="text-sm font-medium text-slate-900">Uploaded Files</h4>
-                    <div className="p-3 bg-slate-50 rounded-lg border flex items-center justify-between">
+                    
+                    <div className="p-3 bg-slate-50 rounded-lg border flex items-center justify-between group hover:bg-slate-100 transition-colors">
                       <div className="flex items-center gap-3">
                         <FileText className="w-5 h-5 text-primary" />
                         <div className="text-sm">
@@ -299,11 +320,43 @@ export default function ClientDetailPage() {
                           <p className="text-slate-500">2.4 MB • Uploaded 2 days ago</p>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm">Download</Button>
+                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                         <Button variant="ghost" size="sm" onClick={() => window.open('/assets/passport_placeholder.pdf')}>
+                           <Eye className="w-4 h-4 mr-1" /> View
+                         </Button>
+                         <Button variant="outline" size="sm" onClick={() => handleDownload("passport_copy.pdf")}>
+                           <Download className="w-4 h-4 mr-1" /> Download
+                         </Button>
+                      </div>
                     </div>
+
+                    <div className="p-3 bg-slate-50 rounded-lg border flex items-center justify-between group hover:bg-slate-100 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-5 h-5 text-primary" />
+                        <div className="text-sm">
+                          <p className="font-medium text-slate-900">utility_bill.jpg</p>
+                          <p className="text-slate-500">1.8 MB • Uploaded 2 days ago</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                         <Button variant="ghost" size="sm">
+                           <Eye className="w-4 h-4 mr-1" /> View
+                         </Button>
+                         <Button variant="outline" size="sm" onClick={() => handleDownload("utility_bill.jpg")}>
+                           <Download className="w-4 h-4 mr-1" /> Download
+                         </Button>
+                      </div>
+                    </div>
+
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="audit" className="mt-6">
+                <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-lg border border-dashed">
+                    Audit logs will appear here after client actions.
+                </div>
             </TabsContent>
           </Tabs>
         </div>

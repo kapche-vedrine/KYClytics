@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { calculateRisk, RiskBand, ReviewStatus } from './risk-engine';
+import { calculateRisk, RiskBand, ReviewStatus, RiskConfig, DEFAULT_RISK_CONFIG } from './risk-engine';
 import { addMonths, isPast, subDays } from 'date-fns';
 
 export interface Client {
@@ -23,11 +23,13 @@ export interface Client {
 interface StoreState {
   user: { name: string; role: 'ADMIN' | 'COMPLIANCE_OFFICER' } | null;
   clients: Client[];
+  riskConfig: RiskConfig;
   login: (email: string) => void;
   logout: () => void;
   addClient: (data: Omit<Client, 'id' | 'score' | 'band' | 'status' | 'nextReview' | 'lastUpdated'>) => void;
   updateClient: (id: string, data: Partial<Client>) => void;
   deleteClient: (id: string) => void;
+  updateRiskConfig: (newConfig: Partial<RiskConfig>) => void;
 }
 
 // Seed Data
@@ -72,13 +74,13 @@ const MOCK_CLIENTS: Client[] = [
     lastName: 'Wu',
     dob: '1992-02-15',
     address: '789 Market St, San Francisco',
-    country: 'USA',
+    country: 'United States',
     postalCode: '94103',
     job: 'Crypto Trader',
     industry: 'Cryptocurrency',
     pep: false,
     score: 20,
-    band: 'GREEN', // Only 20 points, still green (<25)
+    band: 'GREEN',
     status: 'OK',
     nextReview: addMonths(new Date(), 24).toISOString(),
     lastUpdated: new Date().toISOString(),
@@ -89,12 +91,12 @@ const MOCK_CLIENTS: Client[] = [
     lastName: 'Miller',
     dob: '1980-06-30',
     address: '101 Casino Blvd, Las Vegas',
-    country: 'USA',
+    country: 'United States',
     postalCode: '89109',
     job: 'Dealer',
     industry: 'Gambling',
     pep: false,
-    score: 30, // +20 Industry +10 Job
+    score: 30,
     band: 'YELLOW',
     status: 'OVERDUE',
     nextReview: subDays(new Date(), 5).toISOString(),
@@ -102,13 +104,14 @@ const MOCK_CLIENTS: Client[] = [
   },
 ];
 
-export const useStore = create<StoreState>((set) => ({
+export const useStore = create<StoreState>((set, get) => ({
   user: null,
   clients: MOCK_CLIENTS,
+  riskConfig: DEFAULT_RISK_CONFIG,
   login: (email: string) => set({ user: { name: email.split('@')[0], role: 'COMPLIANCE_OFFICER' } }),
   logout: () => set({ user: null }),
-  addClient: (data: Omit<Client, 'id' | 'score' | 'band' | 'status' | 'nextReview' | 'lastUpdated'>) => set((state) => {
-    const risk = calculateRisk(data);
+  addClient: (data) => set((state) => {
+    const risk = calculateRisk(data, state.riskConfig);
     const nextReview = addMonths(new Date(), risk.nextReviewMonths);
     
     const newClient: Client = {
@@ -126,17 +129,14 @@ export const useStore = create<StoreState>((set) => ({
     const updatedClients = state.clients.map((c) => {
       if (c.id !== id) return c;
       
-      // Merge data
       const merged = { ...c, ...data };
       
-      // Recompute risk if key fields changed
-      // In a real app, we'd check if relevant fields changed. Here we just recompute to be safe/reactive.
       const risk = calculateRisk({
         pep: merged.pep,
         country: merged.country,
         industry: merged.industry,
         job: merged.job
-      });
+      }, state.riskConfig);
       
       return {
         ...merged,
@@ -150,5 +150,8 @@ export const useStore = create<StoreState>((set) => ({
   }),
   deleteClient: (id: string) => set((state) => ({
     clients: state.clients.filter((c) => c.id !== id)
+  })),
+  updateRiskConfig: (newConfig) => set((state) => ({
+    riskConfig: { ...state.riskConfig, ...newConfig }
   })),
 }));

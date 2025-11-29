@@ -9,6 +9,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import ClientsPage from "@/pages/ClientsPage";
 import ClientDetailPage from "@/pages/ClientDetailPage";
 import AuditPage from "@/pages/AuditPage";
+import SettingsPage from "@/pages/SettingsPage";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useStore } from "@/lib/mock-data";
 
@@ -41,6 +42,9 @@ function Router() {
       </Route>
       <Route path="/audit">
         <ProtectedRoute component={AuditPage} />
+      </Route>
+      <Route path="/admin">
+        <ProtectedRoute component={SettingsPage} />
       </Route>
       <Route component={NotFound} />
     </Switch>
