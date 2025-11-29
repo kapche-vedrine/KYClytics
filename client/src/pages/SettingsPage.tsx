@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useStore } from "@/lib/mock-data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,12 +9,18 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Save, RotateCcw } from "lucide-react";
+import { Save, RotateCcw, Plus, Trash2 } from "lucide-react";
 import { DEFAULT_RISK_CONFIG, ALL_COUNTRIES, ALL_INDUSTRIES } from "@/lib/risk-engine";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function SettingsPage() {
   const { riskConfig, updateRiskConfig } = useStore();
   const { toast } = useToast();
+  
+  // Local state for adding new items
+  const [newCountry, setNewCountry] = useState("");
+  const [newIndustry, setNewIndustry] = useState("");
 
   const handleWeightChange = (key: keyof typeof riskConfig.weights, value: number) => {
     updateRiskConfig({
@@ -31,6 +37,41 @@ export default function SettingsPage() {
     // In a real app, this would persist to backend
     toast({ title: "Settings Saved", description: "Risk engine configuration updated successfully." });
   };
+  
+  const addRiskCountry = () => {
+      if (newCountry && !riskConfig.highRiskCountries.includes(newCountry)) {
+          updateRiskConfig({
+              highRiskCountries: [...riskConfig.highRiskCountries, newCountry]
+          });
+          setNewCountry("");
+          toast({ title: "Country Added", description: `${newCountry} marked as High Risk.` });
+      }
+  };
+
+  const removeRiskCountry = (country: string) => {
+      updateRiskConfig({
+          highRiskCountries: riskConfig.highRiskCountries.filter(c => c !== country)
+      });
+      toast({ title: "Country Removed", description: `${country} removed from High Risk list.` });
+  };
+
+  const addRiskIndustry = () => {
+      if (newIndustry && !riskConfig.highRiskIndustries.includes(newIndustry)) {
+          updateRiskConfig({
+              highRiskIndustries: [...riskConfig.highRiskIndustries, newIndustry]
+          });
+          setNewIndustry("");
+          toast({ title: "Industry Added", description: `${newIndustry} marked as High Risk.` });
+      }
+  };
+  
+  const removeRiskIndustry = (industry: string) => {
+      updateRiskConfig({
+          highRiskIndustries: riskConfig.highRiskIndustries.filter(i => i !== industry)
+      });
+      toast({ title: "Industry Removed", description: `${industry} removed from High Risk list.` });
+  };
+
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -183,14 +224,70 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle>High Risk Countries</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Select value={newCountry} onValueChange={setNewCountry}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Add Country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <ScrollArea className="h-[200px]">
+                             {ALL_COUNTRIES.filter(c => !riskConfig.highRiskCountries.includes(c)).map(c => (
+                                 <SelectItem key={c} value={c}>{c}</SelectItem>
+                             ))}
+                        </ScrollArea>
+                    </SelectContent>
+                </Select>
+                <Button size="icon" onClick={addRiskCountry} disabled={!newCountry}>
+                    <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              <div className="flex flex-wrap gap-2 max-h-[200px] overflow-y-auto">
                 {riskConfig.highRiskCountries.map(country => (
-                  <Badge key={country} variant="secondary" className="bg-slate-100 text-slate-700 hover:bg-slate-200">
+                  <Badge key={country} variant="secondary" className="bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center gap-1 pr-1">
                     {country}
+                    <button onClick={() => removeRiskCountry(country)} className="hover:text-red-500 rounded-full p-0.5">
+                        <Trash2 className="w-3 h-3" />
+                    </button>
                   </Badge>
                 ))}
-                <Badge variant="outline" className="text-slate-400 border-dashed border-slate-300">+ Edit List</Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader>
+              <CardTitle>High Risk Industries</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Select value={newIndustry} onValueChange={setNewIndustry}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Add Industry" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <ScrollArea className="h-[200px]">
+                             {ALL_INDUSTRIES.filter(i => !riskConfig.highRiskIndustries.includes(i)).map(i => (
+                                 <SelectItem key={i} value={i}>{i}</SelectItem>
+                             ))}
+                        </ScrollArea>
+                    </SelectContent>
+                </Select>
+                 <Button size="icon" onClick={addRiskIndustry} disabled={!newIndustry}>
+                    <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              <div className="flex flex-wrap gap-2 max-h-[200px] overflow-y-auto">
+                {riskConfig.highRiskIndustries.map(industry => (
+                  <Badge key={industry} variant="secondary" className="bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center gap-1 pr-1">
+                    {industry}
+                     <button onClick={() => removeRiskIndustry(industry)} className="hover:text-red-500 rounded-full p-0.5">
+                        <Trash2 className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))}
               </div>
             </CardContent>
           </Card>

@@ -2,6 +2,14 @@ import { create } from 'zustand';
 import { calculateRisk, RiskBand, ReviewStatus, RiskConfig, DEFAULT_RISK_CONFIG } from './risk-engine';
 import { addMonths, isPast, subDays } from 'date-fns';
 
+export interface ClientDocument {
+  id: string;
+  name: string;
+  size: string;
+  uploadDate: string;
+  type: string;
+}
+
 export interface Client {
   id: string;
   firstName: string;
@@ -18,6 +26,7 @@ export interface Client {
   status: ReviewStatus;
   nextReview: string; // ISO Date
   lastUpdated: string;
+  documents: ClientDocument[];
 }
 
 interface StoreState {
@@ -26,10 +35,12 @@ interface StoreState {
   riskConfig: RiskConfig;
   login: (email: string) => void;
   logout: () => void;
-  addClient: (data: Omit<Client, 'id' | 'score' | 'band' | 'status' | 'nextReview' | 'lastUpdated'>) => void;
+  addClient: (data: Omit<Client, 'id' | 'score' | 'band' | 'status' | 'nextReview' | 'lastUpdated' | 'documents'>) => void;
   updateClient: (id: string, data: Partial<Client>) => void;
   deleteClient: (id: string) => void;
   updateRiskConfig: (newConfig: Partial<RiskConfig>) => void;
+  addDocument: (clientId: string, document: Omit<ClientDocument, 'id' | 'uploadDate'>) => void;
+  deleteDocument: (clientId: string, documentId: string) => void;
 }
 
 // Seed Data
@@ -50,6 +61,10 @@ const MOCK_CLIENTS: Client[] = [
     status: 'OK',
     nextReview: addMonths(new Date(), 20).toISOString(),
     lastUpdated: new Date().toISOString(),
+    documents: [
+        { id: 'd1', name: 'passport_copy.pdf', size: '2.4 MB', uploadDate: subDays(new Date(), 2).toISOString(), type: 'application/pdf' },
+        { id: 'd2', name: 'utility_bill.jpg', size: '1.8 MB', uploadDate: subDays(new Date(), 2).toISOString(), type: 'image/jpeg' }
+    ]
   },
   {
     id: '2',
@@ -67,6 +82,7 @@ const MOCK_CLIENTS: Client[] = [
     status: 'DUE_SOON',
     nextReview: addMonths(new Date(), 1).toISOString(),
     lastUpdated: subDays(new Date(), 150).toISOString(),
+    documents: []
   },
   {
     id: '3',
@@ -84,6 +100,7 @@ const MOCK_CLIENTS: Client[] = [
     status: 'OK',
     nextReview: addMonths(new Date(), 24).toISOString(),
     lastUpdated: new Date().toISOString(),
+    documents: []
   },
   {
     id: '4',
@@ -101,6 +118,7 @@ const MOCK_CLIENTS: Client[] = [
     status: 'OVERDUE',
     nextReview: subDays(new Date(), 5).toISOString(),
     lastUpdated: subDays(new Date(), 370).toISOString(),
+    documents: []
   },
 ];
 
@@ -122,6 +140,7 @@ export const useStore = create<StoreState>((set, get) => ({
       status: 'OK',
       nextReview: nextReview.toISOString(),
       lastUpdated: new Date().toISOString(),
+      documents: []
     };
     return { clients: [newClient, ...state.clients] };
   }),
@@ -154,4 +173,23 @@ export const useStore = create<StoreState>((set, get) => ({
   updateRiskConfig: (newConfig) => set((state) => ({
     riskConfig: { ...state.riskConfig, ...newConfig }
   })),
+  addDocument: (clientId, document) => set((state) => {
+     const updatedClients = state.clients.map((c) => {
+      if (c.id !== clientId) return c;
+      const newDoc: ClientDocument = {
+        ...document,
+        id: Math.random().toString(36).substr(2, 9),
+        uploadDate: new Date().toISOString()
+      };
+      return { ...c, documents: [...c.documents, newDoc] };
+    });
+    return { clients: updatedClients };
+  }),
+  deleteDocument: (clientId, documentId) => set((state) => {
+    const updatedClients = state.clients.map((c) => {
+      if (c.id !== clientId) return c;
+      return { ...c, documents: c.documents.filter(d => d.id !== documentId) };
+    });
+    return { clients: updatedClients };
+  })
 }));

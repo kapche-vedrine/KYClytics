@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { RiskBadge } from "@/components/ui/risk-badge";
-import { ArrowLeft, Save, Upload, FileText, AlertCircle, Download, Eye } from "lucide-react";
+import { ArrowLeft, Save, Upload, FileText, AlertCircle, Download, Eye, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -34,7 +34,7 @@ export default function ClientDetailPage() {
   const [, params] = useRoute("/clients/:id");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { clients, addClient, updateClient, riskConfig } = useStore();
+  const { clients, addClient, updateClient, riskConfig, addDocument, deleteDocument } = useStore();
   
   const isNew = params?.id === "new";
   const existingClient = clients.find(c => c.id === params?.id);
@@ -89,6 +89,56 @@ export default function ClientDetailPage() {
     }, 1500);
   };
 
+  const handleGenerateReport = () => {
+    toast({
+      title: "Generating Risk Report",
+      description: "Compiling client data and risk analysis...",
+    });
+    setTimeout(() => {
+      toast({
+        title: "Report Ready",
+        description: "KYC Risk Report has been generated and downloaded.",
+        variant: "default",
+      });
+    }, 2000);
+  };
+
+  const handleFileUpload = () => {
+    if (!existingClient) {
+        toast({
+            title: "Cannot Upload",
+            description: "Please create the client before uploading documents.",
+            variant: "destructive"
+        });
+        return;
+    }
+    
+    // Simulate file upload
+    const mockFiles = [
+        { name: "id_card_scan.png", size: "3.2 MB", type: "image/png" },
+        { name: "bank_statement.pdf", size: "1.5 MB", type: "application/pdf" }
+    ];
+    
+    const randomFile = mockFiles[Math.floor(Math.random() * mockFiles.length)];
+    
+    addDocument(existingClient.id, randomFile);
+    
+    toast({
+        title: "File Uploaded",
+        description: `${randomFile.name} has been successfully attached.`,
+    });
+  };
+
+  const handleDeleteDocument = (docId: string, docName: string) => {
+     if (!existingClient) return;
+     deleteDocument(existingClient.id, docId);
+     toast({
+         title: "Document Deleted",
+         description: `${docName} has been removed.`,
+         variant: "destructive"
+     });
+  };
+
   if (!isNew && !existingClient) {
     return <div>Client not found</div>;
   }
@@ -112,7 +162,7 @@ export default function ClientDetailPage() {
         </div>
         <div className="flex gap-2">
           {!isNew && (
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2" onClick={handleGenerateReport}>
               <FileText className="w-4 h-4" />
               Generate Report
             </Button>
@@ -303,51 +353,51 @@ export default function ClientDetailPage() {
                   <CardTitle>Documents</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="border-2 border-dashed border-slate-300 rounded-xl p-12 flex flex-col items-center justify-center text-slate-500 hover:bg-slate-50 hover:border-primary/50 transition-all cursor-pointer">
+                  <div 
+                    onClick={handleFileUpload}
+                    className={`border-2 border-dashed border-slate-300 rounded-xl p-12 flex flex-col items-center justify-center text-slate-500 transition-all cursor-pointer ${!existingClient ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50 hover:border-primary/50'}`}
+                  >
                     <Upload className="w-12 h-12 mb-4 text-slate-400" />
-                    <p className="font-medium text-slate-900">Drop files to upload</p>
+                    <p className="font-medium text-slate-900">
+                        {existingClient ? "Drop files to upload" : "Create client to upload documents"}
+                    </p>
                     <p className="text-sm mt-1">PDF, JPG or PNG up to 15MB</p>
                   </div>
                   
                   <div className="mt-6 space-y-3">
                     <h4 className="text-sm font-medium text-slate-900">Uploaded Files</h4>
                     
-                    <div className="p-3 bg-slate-50 rounded-lg border flex items-center justify-between group hover:bg-slate-100 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-5 h-5 text-primary" />
-                        <div className="text-sm">
-                          <p className="font-medium text-slate-900">passport_copy.pdf</p>
-                          <p className="text-slate-500">2.4 MB • Uploaded 2 days ago</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                         <Button variant="ghost" size="sm" onClick={() => window.open('/assets/passport_placeholder.pdf')}>
-                           <Eye className="w-4 h-4 mr-1" /> View
-                         </Button>
-                         <Button variant="outline" size="sm" onClick={() => handleDownload("passport_copy.pdf")}>
-                           <Download className="w-4 h-4 mr-1" /> Download
-                         </Button>
-                      </div>
-                    </div>
-
-                    <div className="p-3 bg-slate-50 rounded-lg border flex items-center justify-between group hover:bg-slate-100 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-5 h-5 text-primary" />
-                        <div className="text-sm">
-                          <p className="font-medium text-slate-900">utility_bill.jpg</p>
-                          <p className="text-slate-500">1.8 MB • Uploaded 2 days ago</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                         <Button variant="ghost" size="sm">
-                           <Eye className="w-4 h-4 mr-1" /> View
-                         </Button>
-                         <Button variant="outline" size="sm" onClick={() => handleDownload("utility_bill.jpg")}>
-                           <Download className="w-4 h-4 mr-1" /> Download
-                         </Button>
-                      </div>
-                    </div>
-
+                    {existingClient?.documents?.length === 0 ? (
+                        <p className="text-sm text-slate-500 italic">No documents attached.</p>
+                    ) : (
+                        existingClient?.documents?.map((doc) => (
+                            <div key={doc.id} className="p-3 bg-slate-50 rounded-lg border flex items-center justify-between group hover:bg-slate-100 transition-colors">
+                              <div className="flex items-center gap-3">
+                                <FileText className="w-5 h-5 text-primary" />
+                                <div className="text-sm">
+                                  <p className="font-medium text-slate-900">{doc.name}</p>
+                                  <p className="text-slate-500">{doc.size} • {new Date(doc.uploadDate).toLocaleDateString()}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                 <Button variant="ghost" size="sm" onClick={() => window.open('#')}>
+                                   <Eye className="w-4 h-4 mr-1" /> View
+                                 </Button>
+                                 <Button variant="outline" size="sm" onClick={() => handleDownload(doc.name)}>
+                                   <Download className="w-4 h-4 mr-1" /> Download
+                                 </Button>
+                                 <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                                    onClick={() => handleDeleteDocument(doc.id, doc.name)}
+                                 >
+                                    <Trash2 className="w-4 h-4" />
+                                 </Button>
+                              </div>
+                            </div>
+                        ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
