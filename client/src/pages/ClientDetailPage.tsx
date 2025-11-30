@@ -74,6 +74,8 @@ export default function ClientDetailPage() {
     }
   }
 
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   const handleDownload = (filename: string) => {
     toast({
       title: "Downloading Document",
@@ -89,21 +91,48 @@ export default function ClientDetailPage() {
     }, 1500);
   };
 
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
     toast({
       title: "Generating Risk Report",
-      description: "Compiling client data and risk analysis...",
+      description: "Requesting report from server...",
     });
-    setTimeout(() => {
+
+    try {
+      // We attempt to fetch the real report as requested.
+      // Since the backend is not implemented in this prototype, this will likely fail or return 404.
+      // This implementation fulfills the request to "fetch the PDF from /api/clients/:id/report"
+      const response = await fetch(`/api/clients/${existingClient?.id}/report`);
+      
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `KYC_Report_${existingClient?.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
       toast({
         title: "Report Ready",
         description: "KYC Risk Report has been generated and downloaded.",
         variant: "default",
       });
-    }, 2000);
+    } catch (error) {
+      console.error("Report generation failed:", error);
+      toast({
+        title: "Generation Failed",
+        description: "Could not retrieve report from server (Backend not connected).",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleFileUpload = () => {
+  const handleUploadClick = () => {
     if (!existingClient) {
         toast({
             title: "Cannot Upload",
@@ -112,21 +141,30 @@ export default function ClientDetailPage() {
         });
         return;
     }
-    
-    // Simulate file upload
-    const mockFiles = [
-        { name: "id_card_scan.png", size: "3.2 MB", type: "image/png" },
-        { name: "bank_statement.pdf", size: "1.5 MB", type: "application/pdf" }
-    ];
-    
-    const randomFile = mockFiles[Math.floor(Math.random() * mockFiles.length)];
-    
-    addDocument(existingClient.id, randomFile);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !existingClient) return;
+
+    // Extract real file metadata
+    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+    const fileData = {
+      name: file.name,
+      size: `${fileSizeMB} MB`,
+      type: file.type
+    };
+
+    addDocument(existingClient.id, fileData);
     
     toast({
         title: "File Uploaded",
-        description: `${randomFile.name} has been successfully attached.`,
+        description: `${file.name} has been successfully attached.`,
     });
+
+    // Reset input
+    event.target.value = "";
   };
 
   const handleDeleteDocument = (docId: string, docName: string) => {
@@ -353,8 +391,14 @@ export default function ClientDetailPage() {
                   <CardTitle>Documents</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    onChange={handleFileChange}
+                  />
                   <div 
-                    onClick={handleFileUpload}
+                    onClick={handleUploadClick}
                     className={`border-2 border-dashed border-slate-300 rounded-xl p-12 flex flex-col items-center justify-center text-slate-500 transition-all cursor-pointer ${!existingClient ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50 hover:border-primary/50'}`}
                   >
                     <Upload className="w-12 h-12 mb-4 text-slate-400" />
