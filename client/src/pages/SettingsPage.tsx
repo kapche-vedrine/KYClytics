@@ -9,13 +9,26 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Save, RotateCcw, Plus, Trash2 } from "lucide-react";
+import { Save, RotateCcw, Plus, Trash2, Sun, Moon, Palette } from "lucide-react";
 import { DEFAULT_RISK_CONFIG, ALL_COUNTRIES, ALL_INDUSTRIES } from "@/lib/risk-engine";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useTheme } from "@/components/ThemeProvider";
+
+const THEME_COLORS = [
+  { name: "Blue", value: "#1e40af" },
+  { name: "Purple", value: "#7c3aed" },
+  { name: "Green", value: "#059669" },
+  { name: "Red", value: "#dc2626" },
+  { name: "Orange", value: "#ea580c" },
+  { name: "Pink", value: "#db2777" },
+  { name: "Teal", value: "#0d9488" },
+  { name: "Indigo", value: "#4f46e5" },
+];
 
 export default function SettingsPage() {
   const { toast } = useToast();
+  const { theme, primaryColor, setTheme, setPrimaryColor } = useTheme();
   
   const [loading, setLoading] = useState(true);
   const [riskConfig, setRiskConfig] = useState<any>(null);
@@ -172,8 +185,8 @@ export default function SettingsPage() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
-          <p className="text-slate-500 mt-1">Configure risk engine parameters and system preferences.</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Settings</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Configure risk engine parameters and system preferences.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleReset} className="gap-2">
@@ -186,6 +199,66 @@ export default function SettingsPage() {
           </Button>
         </div>
       </div>
+
+      {/* Theme Settings */}
+      <Card className="border-slate-200 dark:border-slate-700 shadow-sm" data-testid="card-theme-settings">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="w-5 h-5" />
+            Appearance
+          </CardTitle>
+          <CardDescription>Customize the look and feel of your dashboard.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-8">
+            <div className="space-y-4">
+              <Label className="text-base">Theme Mode</Label>
+              <div className="flex gap-2">
+                <Button
+                  variant={theme === "light" ? "default" : "outline"}
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setTheme("light")}
+                  data-testid="button-theme-light"
+                >
+                  <Sun className="w-4 h-4" />
+                  Light
+                </Button>
+                <Button
+                  variant={theme === "dark" ? "default" : "outline"}
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setTheme("dark")}
+                  data-testid="button-theme-dark"
+                >
+                  <Moon className="w-4 h-4" />
+                  Dark
+                </Button>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <Label className="text-base">Primary Color</Label>
+              <div className="flex flex-wrap gap-2">
+                {THEME_COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    onClick={() => setPrimaryColor(color.value)}
+                    className={`w-8 h-8 rounded-full border-2 transition-all ${
+                      primaryColor === color.value
+                        ? "ring-2 ring-offset-2 ring-slate-400 dark:ring-slate-500"
+                        : "hover:scale-110"
+                    }`}
+                    style={{ backgroundColor: color.value }}
+                    title={color.name}
+                    data-testid={`button-color-${color.name.toLowerCase()}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Risk Weights */}

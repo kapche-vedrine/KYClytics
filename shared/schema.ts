@@ -43,6 +43,16 @@ export const documents = pgTable("documents", {
   uploadDate: timestamp("upload_date").notNull().defaultNow(),
 });
 
+export const userPreferences = pgTable("user_preferences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  theme: text("theme").notNull().default("light"),
+  primaryColor: text("primary_color").notNull().default("#1e40af"),
+  dashboardWidgets: text("dashboard_widgets").array().notNull().default(sql`ARRAY['stats', 'riskChart', 'priorityReviews', 'recentActivity']`),
+  widgetLayout: text("widget_layout").notNull().default('default'),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const riskConfig = pgTable("risk_config", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   pepWeight: integer("pep_weight").notNull().default(30),
@@ -78,6 +88,11 @@ export const insertDocumentSchema = createInsertSchema(documents).omit({
   uploadDate: true,
 });
 
+export const insertUserPreferencesSchema = createInsertSchema(userPreferences).omit({
+  id: true,
+  updatedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertClient = z.infer<typeof insertClientSchema>;
@@ -85,3 +100,5 @@ export type Client = typeof clients.$inferSelect;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type Document = typeof documents.$inferSelect;
 export type RiskConfig = typeof riskConfig.$inferSelect;
+export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
+export type UserPreferences = typeof userPreferences.$inferSelect;

@@ -118,3 +118,21 @@ export const riskConfigAPI = {
     return response.data;
   }
 };
+
+export interface UserPreferences {
+  theme: string;
+  primaryColor: string;
+  dashboardWidgets: string[];
+  widgetLayout: string;
+}
+
+export const preferencesAPI = {
+  get: async (): Promise<UserPreferences> => {
+    const response = await api.get('/user/preferences');
+    return response.data;
+  },
+  update: async (data: Partial<UserPreferences>): Promise<UserPreferences> => {
+    const response = await api.put('/user/preferences', data);
+    return response.data;
+  }
+};

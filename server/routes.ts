@@ -448,5 +448,37 @@ export async function registerRoutes(
     }
   });
 
+  // User Preferences Routes
+  app.get("/api/user/preferences", authMiddleware, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const prefs = await storage.getUserPreferences(userId);
+      
+      // Return default preferences if none exist
+      if (!prefs) {
+        return res.json({
+          theme: 'light',
+          primaryColor: '#1e40af',
+          dashboardWidgets: ['stats', 'riskChart', 'priorityReviews', 'recentActivity'],
+          widgetLayout: 'default'
+        });
+      }
+      
+      res.json(prefs);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/user/preferences", authMiddleware, async (req, res) => {
+    try {
+      const userId = (req as any).user.userId;
+      const prefs = await storage.updateUserPreferences(userId, req.body);
+      res.json(prefs);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return httpServer;
 }

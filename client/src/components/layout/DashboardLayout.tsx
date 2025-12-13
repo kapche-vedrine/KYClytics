@@ -93,13 +93,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex">
       <div className="hidden md:block w-64 bg-sidebar border-r border-sidebar-border shrink-0">
         <NavContent />
       </div>
 
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        <header className="h-16 bg-white border-b flex items-center justify-between px-4 md:px-8 sticky top-0 z-10">
+        <header className="h-16 bg-white dark:bg-slate-800 border-b dark:border-slate-700 flex items-center justify-between px-4 md:px-8 sticky top-0 z-10">
           <div className="md:hidden">
             <Sheet>
               <SheetTrigger asChild>
@@ -115,16 +115,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
           <div className="flex-1 max-w-md ml-4 md:ml-0">
             <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400 dark:text-slate-500" />
               <Input 
                 placeholder="Global search..." 
-                className="pl-9 bg-slate-50 border-slate-200 focus:bg-white transition-all rounded-full" 
+                className="pl-9 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus:bg-white dark:focus:bg-slate-600 transition-all rounded-full dark:text-slate-100 dark:placeholder:text-slate-400" 
               />
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-slate-500">
+            <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               System Operational
             </div>

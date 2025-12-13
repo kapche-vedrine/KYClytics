@@ -1,6 +1,6 @@
-import { type User, type InsertUser, type Client, type InsertClient, type Document, type InsertDocument, type RiskConfig } from "@shared/schema";
+import { type User, type InsertUser, type Client, type InsertClient, type Document, type InsertDocument, type RiskConfig, type UserPreferences, type InsertUserPreferences } from "@shared/schema";
 import { db } from "./db";
-import { users, clients, documents, riskConfig } from "@shared/schema";
+import { users, clients, documents, riskConfig, userPreferences } from "@shared/schema";
 import { eq, or, ilike } from "drizzle-orm";
 
 export interface IStorage {
@@ -12,7 +12,7 @@ export interface IStorage {
   // Clients
   getClients(filters?: { riskBand?: string; search?: string }): Promise<Client[]>;
   getClient(id: string): Promise<Client | undefined>;
-  createClient(client: InsertClient): Promise<Client>;
+  createClient(client: InsertClient & { score: number; band: string; status: string; nextReview: Date }): Promise<Client>;
   updateClient(id: string, client: Partial<InsertClient>): Promise<Client | undefined>;
   deleteClient(id: string): Promise<boolean>;
   
@@ -25,6 +25,10 @@ export interface IStorage {
   // Risk Config
   getRiskConfig(): Promise<RiskConfig | undefined>;
   updateRiskConfig(config: Partial<RiskConfig>): Promise<RiskConfig>;
+  
+  // User Preferences
+  getUserPreferences(userId: string): Promise<UserPreferences | undefined>;
+  updateUserPreferences(userId: string, prefs: Partial<InsertUserPreferences>): Promise<UserPreferences>;
 }
 
 export class DrizzleStorage implements IStorage {
@@ -44,15 +48,15 @@ export class DrizzleStorage implements IStorage {
   }
 
   async getClients(filters?: { riskBand?: string; search?: string }): Promise<Client[]> {
-    let query = db.select().from(clients);
+    const conditions: any[] = [];
     
     if (filters?.riskBand && filters.riskBand !== "ALL") {
-      query = query.where(eq(clients.band, filters.riskBand as any));
+      conditions.push(eq(clients.band, filters.riskBand as any));
     }
     
     if (filters?.search) {
       const searchTerm = `%${filters.search}%`;
-      query = query.where(
+      conditions.push(
         or(
           ilike(clients.firstName, searchTerm),
           ilike(clients.lastName, searchTerm)
@@ -60,7 +64,11 @@ export class DrizzleStorage implements IStorage {
       );
     }
     
-    return query;
+    if (conditions.length > 0) {
+      return db.select().from(clients).where(conditions.length === 1 ? conditions[0] : or(...conditions));
+    }
+    
+    return db.select().from(clients);
   }
 
   async getClient(id: string): Promise<Client | undefined> {
@@ -68,8 +76,8 @@ export class DrizzleStorage implements IStorage {
     return result[0];
   }
 
-  async createClient(client: InsertClient): Promise<Client> {
-    const result = await db.insert(clients).values(client).returning();
+  async createClient(client: InsertClient & { score: number; band: string; status: string; nextReview: Date }): Promise<Client> {
+    const result = await db.insert(clients).values(client as any).returning();
     return result[0];
   }
 
@@ -121,6 +129,26 @@ export class DrizzleStorage implements IStorage {
       return result[0];
     } else {
       const result = await db.insert(riskConfig).values(config as any).returning();
+      return result[0];
+    }
+  }
+
+  async getUserPreferences(userId: string): Promise<UserPreferences | undefined> {
+    const result = await db.select().from(userPreferences).where(eq(userPreferences.userId, userId));
+    return result[0];
+  }
+
+  async updateUserPreferences(userId: string, prefs: Partial<InsertUserPreferences>): Promise<UserPreferences> {
+    const existing = await this.getUserPreferences(userId);
+    
+    if (existing) {
+      const result = await db.update(userPreferences)
+        .set({ ...prefs, updatedAt: new Date() })
+        .where(eq(userPreferences.userId, userId))
+        .returning();
+      return result[0];
+    } else {
+      const result = await db.insert(userPreferences).values({ userId, ...prefs } as any).returning();
       return result[0];
     }
   }
