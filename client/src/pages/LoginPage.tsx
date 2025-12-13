@@ -25,8 +25,8 @@ export default function LoginPage() {
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "admin@kyclytics.com",
-      password: "admin123",
+      email: "",
+      password: "",
     },
   });
 
