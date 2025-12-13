@@ -19,6 +19,18 @@ import { ArrowLeft, Save, Upload, FileText, AlertCircle, Download, Eye, Trash2 }
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+const formatLuxembourgTime = (date: Date | string) => {
+  return new Date(date).toLocaleString('fr-LU', { 
+    timeZone: 'Europe/Luxembourg',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+};
+
 const clientSchema = z.object({
   firstName: z.string().min(2, "First name required"),
   lastName: z.string().min(2, "Last name required"),
@@ -285,7 +297,7 @@ export default function ClientDetailPage() {
               {isNew ? "New Client Onboarding" : `${client?.firstName} ${client?.lastName}`}
             </h1>
             <p className="text-slate-500 text-sm">
-              {isNew ? "Complete the form to generate initial risk score." : `ID: ${client?.id} • Last Updated: ${new Date(client?.lastUpdated || "").toLocaleDateString()}`}
+              {isNew ? "Complete the form to generate initial risk score." : `ID: ${client?.id} • Last Updated: ${client?.lastUpdated ? formatLuxembourgTime(client.lastUpdated) : ''}`}
             </p>
           </div>
         </div>
@@ -511,7 +523,7 @@ export default function ClientDetailPage() {
                                 <FileText className="w-5 h-5 text-primary" />
                                 <div className="text-sm">
                                   <p className="font-medium text-slate-900">{doc.name}</p>
-                                  <p className="text-slate-500">{doc.size} • {new Date(doc.uploadDate).toLocaleDateString()}</p>
+                                  <p className="text-slate-500">{doc.size} • {formatLuxembourgTime(doc.uploadDate)}</p>
                                 </div>
                               </div>
                               <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -557,7 +569,7 @@ export default function ClientDetailPage() {
                               <div className="flex-1">
                                 <div className="flex items-center justify-between">
                                   <p className="font-medium text-slate-900">Client profile updated</p>
-                                  <span className="text-xs text-slate-500">{new Date(client.lastUpdated).toLocaleString()}</span>
+                                  <span className="text-xs text-slate-500">{formatLuxembourgTime(client.lastUpdated)}</span>
                                 </div>
                                 <p className="text-sm text-slate-500 mt-1">Risk score recalculated: {client.score} ({client.band})</p>
                               </div>
@@ -569,7 +581,7 @@ export default function ClientDetailPage() {
                                 <div className="flex-1">
                                   <div className="flex items-center justify-between">
                                     <p className="font-medium text-slate-900">Document uploaded</p>
-                                    <span className="text-xs text-slate-500">{new Date(doc.uploadDate).toLocaleString()}</span>
+                                    <span className="text-xs text-slate-500">{formatLuxembourgTime(doc.uploadDate)}</span>
                                   </div>
                                   <p className="text-sm text-slate-500 mt-1">{doc.name} ({doc.size})</p>
                                 </div>
@@ -581,7 +593,7 @@ export default function ClientDetailPage() {
                               <div className="flex-1">
                                 <div className="flex items-center justify-between">
                                   <p className="font-medium text-slate-900">Client onboarded</p>
-                                  <span className="text-xs text-slate-500">{new Date(client.createdAt).toLocaleString()}</span>
+                                  <span className="text-xs text-slate-500">{formatLuxembourgTime(client.createdAt)}</span>
                                 </div>
                                 <p className="text-sm text-slate-500 mt-1">Initial risk assessment completed</p>
                               </div>
