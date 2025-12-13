@@ -539,9 +539,59 @@ export default function ClientDetailPage() {
             </TabsContent>
 
             <TabsContent value="audit" className="mt-6">
-                <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-lg border border-dashed">
-                    Audit logs will appear here after client actions.
-                </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Audit Log</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {isNew ? (
+                      <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-lg border border-dashed">
+                        Audit logs will appear after the client is created.
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {client && (
+                          <>
+                            <div className="flex items-start gap-4 p-4 bg-slate-50 rounded-lg border">
+                              <div className="w-2 h-2 mt-2 rounded-full bg-green-500"></div>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                  <p className="font-medium text-slate-900">Client profile updated</p>
+                                  <span className="text-xs text-slate-500">{new Date(client.lastUpdated).toLocaleString()}</span>
+                                </div>
+                                <p className="text-sm text-slate-500 mt-1">Risk score recalculated: {client.score} ({client.band})</p>
+                              </div>
+                            </div>
+                            
+                            {documents.length > 0 && documents.map((doc, index) => (
+                              <div key={doc.id} className="flex items-start gap-4 p-4 bg-slate-50 rounded-lg border">
+                                <div className="w-2 h-2 mt-2 rounded-full bg-blue-500"></div>
+                                <div className="flex-1">
+                                  <div className="flex items-center justify-between">
+                                    <p className="font-medium text-slate-900">Document uploaded</p>
+                                    <span className="text-xs text-slate-500">{new Date(doc.uploadDate).toLocaleString()}</span>
+                                  </div>
+                                  <p className="text-sm text-slate-500 mt-1">{doc.name} ({doc.size})</p>
+                                </div>
+                              </div>
+                            ))}
+                            
+                            <div className="flex items-start gap-4 p-4 bg-slate-50 rounded-lg border">
+                              <div className="w-2 h-2 mt-2 rounded-full bg-primary"></div>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                  <p className="font-medium text-slate-900">Client onboarded</p>
+                                  <span className="text-xs text-slate-500">{new Date(client.createdAt).toLocaleString()}</span>
+                                </div>
+                                <p className="text-sm text-slate-500 mt-1">Initial risk assessment completed</p>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
             </TabsContent>
           </Tabs>
         </div>
