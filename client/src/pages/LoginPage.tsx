@@ -1,41 +1,63 @@
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useLocation } from "wouter";
-import { useStore } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { ShieldCheck } from "lucide-react";
 import generatedImage from '@assets/generated_images/abstract_blue_and_white_digital_network_security_background.png';
+import { authAPI } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(1, "Password is required"),
 });
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
-  const login = useStore((state) => state.login);
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "admin@kyclytics.com",
-      password: "",
+      password: "admin123",
     },
   });
 
-  function onSubmit(data: z.infer<typeof loginSchema>) {
-    login(data.email);
-    setLocation("/dashboard");
+  async function onSubmit(data: z.infer<typeof loginSchema>) {
+    setIsLoading(true);
+    try {
+      const response = await authAPI.login(data.email, data.password);
+      
+      // Store token and user in localStorage
+      localStorage.setItem('auth_token', response.token);
+      localStorage.setItem('auth_user', JSON.stringify(response.user));
+      
+      toast({ title: "Login successful", description: `Welcome back, ${response.user.name}!` });
+      
+      // Redirect to previously attempted route or dashboard
+      const returnTo = localStorage.getItem('auth_return_to') || '/dashboard';
+      localStorage.removeItem('auth_return_to');
+      setLocation(returnTo);
+    } catch (error: any) {
+      toast({
+        title: "Login failed",
+        description: error.response?.data?.message || "Invalid credentials",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
     <div className="min-h-screen w-full flex">
-      {/* Left Side - Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
         <div className="w-full max-w-md space-y-8">
           <div className="flex flex-col space-y-2">
@@ -81,8 +103,8 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full h-11 text-base" data-testid="button-login">
-                Sign in to Dashboard
+              <Button type="submit" className="w-full h-11 text-base" data-testid="button-login" disabled={isLoading}>
+                {isLoading ? "Signing in..." : "Sign in to Dashboard"}
               </Button>
             </form>
           </Form>
@@ -100,12 +122,11 @@ export default function LoginPage() {
           
           <div className="text-center text-sm text-slate-500">
             <p>Email: admin@kyclytics.com</p>
-            <p>Password: (Any)</p>
+            <p>Password: admin123</p>
           </div>
         </div>
       </div>
 
-      {/* Right Side - Image */}
       <div className="hidden lg:block lg:w-1/2 relative bg-slate-900">
         <img 
           src={generatedImage} 

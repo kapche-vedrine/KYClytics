@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -11,12 +11,34 @@ import ClientDetailPage from "@/pages/ClientDetailPage";
 import AuditPage from "@/pages/AuditPage";
 import SettingsPage from "@/pages/SettingsPage";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useStore } from "@/lib/mock-data";
+import { useEffect, useState } from "react";
 
-function ProtectedRoute({ component: Component, ...rest }: any) {
-  const user = useStore((state) => state.user);
-  
-  if (!user) {
+function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+  const [location, setLocation] = useLocation();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      // Store the attempted route
+      if (location !== '/') {
+        localStorage.setItem('auth_return_to', location);
+      }
+      setIsAuthenticated(false);
+      setIsLoading(false);
+      setLocation('/');
+    } else {
+      setIsAuthenticated(true);
+      setIsLoading(false);
+    }
+  }, [location, setLocation]);
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  if (!isAuthenticated) {
     return <LoginPage />;
   }
 

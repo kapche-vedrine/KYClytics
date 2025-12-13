@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { 
   LayoutDashboard, 
@@ -9,15 +9,27 @@ import {
   Menu,
   Search
 } from 'lucide-react';
-import { useStore } from '@/lib/mock-data';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
-  const { user, logout } = useStore();
+  const [location, setLocation] = useLocation();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const userData = localStorage.getItem('auth_user');
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+  }, []);
+
+  const logout = () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
+    setLocation('/');
+  };
 
   const links = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -61,17 +73,17 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <div className="p-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3 mb-4 px-2">
           <Avatar className="w-8 h-8 bg-slate-700 text-white border border-slate-600">
-            <AvatarFallback>{user?.name?.substring(0, 2).toUpperCase()}</AvatarFallback>
+            <AvatarFallback>{user?.name?.substring(0, 2).toUpperCase() || 'U'}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">{user?.name}</p>
-            <p className="text-xs text-slate-400 truncate">{user?.role}</p>
+            <p className="text-sm font-medium text-white truncate">{user?.name || 'User'}</p>
+            <p className="text-xs text-slate-400 truncate">{user?.role || 'User'}</p>
           </div>
         </div>
         <Button 
           variant="outline" 
           className="w-full justify-start gap-2 border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white"
-          onClick={() => logout()}
+          onClick={logout}
         >
           <LogOut className="w-4 h-4" />
           Sign Out
@@ -82,14 +94,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      {/* Desktop Sidebar */}
       <div className="hidden md:block w-64 bg-sidebar border-r border-sidebar-border shrink-0">
         <NavContent />
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {/* Header */}
         <header className="h-16 bg-white border-b flex items-center justify-between px-4 md:px-8 sticky top-0 z-10">
           <div className="md:hidden">
             <Sheet>
@@ -122,7 +131,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        {/* Scrollable Area */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-6xl mx-auto space-y-8">
             {children}
