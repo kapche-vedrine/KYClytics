@@ -107,3 +107,14 @@ export const reportsAPI = {
     return response.data;
   }
 };
+
+export const riskConfigAPI = {
+  get: async () => {
+    const response = await api.get('/risk-config');
+    return response.data;
+  },
+  update: async (data: any) => {
+    const response = await api.put('/risk-config', data);
+    return response.data;
+  }
+};

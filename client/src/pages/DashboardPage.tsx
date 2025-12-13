@@ -1,5 +1,6 @@
-import React from "react";
-import { useStore } from "@/lib/mock-data";
+import React, { useState, useEffect } from "react";
+import { clientsAPI } from "@/lib/api";
+import { Client } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Cell } from "recharts";
 import { Users, AlertTriangle, Clock, FileCheck, ArrowUpRight } from "lucide-react";
@@ -8,7 +9,22 @@ import { Button } from "@/components/ui/button";
 import { RiskBadge } from "@/components/ui/risk-badge";
 
 export default function DashboardPage() {
-  const clients = useStore((state) => state.clients);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchClients() {
+      try {
+        const data = await clientsAPI.getAll();
+        setClients(data);
+      } catch (error) {
+        console.error("Failed to fetch clients:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchClients();
+  }, []);
 
   // Stats
   const totalClients = clients.length;
@@ -22,6 +38,14 @@ export default function DashboardPage() {
     { name: "Medium Risk", value: clients.filter(c => c.band === 'YELLOW').length, color: "var(--chart-2)" },
     { name: "High Risk", value: clients.filter(c => c.band === 'RED').length, color: "var(--chart-3)" },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-slate-500">Loading dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">

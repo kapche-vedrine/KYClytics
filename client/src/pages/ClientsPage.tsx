@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { useStore, Client } from "@/lib/mock-data";
+import React, { useState, useEffect } from "react";
+import { clientsAPI } from "@/lib/api";
+import { Client } from "@shared/schema";
 import { Link } from "wouter";
 import { 
   Table, 
@@ -15,11 +16,49 @@ import { RiskBadge, StatusBadge } from "@/components/ui/risk-badge";
 import { Plus, Search, Filter, MoreHorizontal } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ClientsPage() {
-  const { clients, deleteClient } = useStore();
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [riskFilter, setRiskFilter] = useState<string>("ALL");
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
+  async function fetchClients() {
+    try {
+      const data = await clientsAPI.getAll();
+      setClients(data);
+    } catch (error) {
+      console.error("Failed to fetch clients:", error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to load clients", 
+        variant: "destructive" 
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDeleteClient(id: string) {
+    try {
+      await clientsAPI.delete(id);
+      setClients(clients.filter(c => c.id !== id));
+      toast({ title: "Client Deleted", description: "Client has been removed." });
+    } catch (error) {
+      console.error("Failed to delete client:", error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to delete client", 
+        variant: "destructive" 
+      });
+    }
+  }
 
   const filteredClients = clients.filter((client) => {
     const matchesSearch = 
@@ -30,6 +69,14 @@ export default function ClientsPage() {
     
     return matchesSearch && matchesRisk;
   });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-slate-500">Loading clients...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -127,7 +174,7 @@ export default function ClientsPage() {
                         </Link>
                         <DropdownMenuItem 
                           className="text-rose-600 focus:text-rose-700 cursor-pointer"
-                          onClick={() => deleteClient(client.id)}
+                          onClick={() => handleDeleteClient(client.id)}
                         >
                           Delete
                         </DropdownMenuItem>

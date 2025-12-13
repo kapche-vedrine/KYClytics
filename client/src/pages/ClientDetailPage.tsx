@@ -3,7 +3,8 @@ import { useRoute, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useStore } from "@/lib/mock-data";
+import { clientsAPI, documentsAPI, reportsAPI, riskConfigAPI } from "@/lib/api";
+import { Client, Document, RiskConfig } from "@shared/schema";
 import { calculateRisk, ALL_COUNTRIES, ALL_INDUSTRIES } from "@/lib/risk-engine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,14 +35,16 @@ export default function ClientDetailPage() {
   const [, params] = useRoute("/clients/:id");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { clients, addClient, updateClient, riskConfig, addDocument, deleteDocument } = useStore();
   
   const isNew = params?.id === "new";
-  const existingClient = clients.find(c => c.id === params?.id);
+  const [client, setClient] = useState<Client | null>(null);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [riskConfig, setRiskConfig] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   const form = useForm<z.infer<typeof clientSchema>>({
     resolver: zodResolver(clientSchema),
-    defaultValues: existingClient || {
+    defaultValues: {
       firstName: "",
       lastName: "",
       dob: "",
@@ -54,64 +57,131 @@ export default function ClientDetailPage() {
     },
   });
 
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const config = await riskConfigAPI.get();
+        const transformedConfig = {
+          weights: {
+            pep: config.pepWeight,
+            highRiskCountry: config.highRiskCountryWeight,
+            highRiskIndustry: config.highRiskIndustryWeight,
+            cashIntensiveJob: config.cashIntensiveJobWeight,
+          },
+          thresholds: {
+            medium: config.mediumThreshold,
+            high: config.highThreshold,
+          },
+          highRiskCountries: config.highRiskCountries,
+          highRiskIndustries: config.highRiskIndustries,
+          cashIntensiveJobs: config.cashIntensiveJobs,
+        };
+        setRiskConfig(transformedConfig);
+
+        if (!isNew && params?.id) {
+          const clientData = await clientsAPI.getOne(params.id);
+          setClient(clientData);
+          
+          form.reset({
+            firstName: clientData.firstName,
+            lastName: clientData.lastName,
+            dob: clientData.dob,
+            address: clientData.address,
+            country: clientData.country,
+            postalCode: clientData.postalCode,
+            job: clientData.job,
+            industry: clientData.industry,
+            pep: clientData.pep,
+          });
+
+          const docsResponse = await fetch(`/api/clients/${params.id}/documents`);
+          if (docsResponse.ok) {
+            const docsData = await docsResponse.json();
+            setDocuments(docsData);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load data:", error);
+        toast({ 
+          title: "Error", 
+          description: "Failed to load client data", 
+          variant: "destructive" 
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, [params?.id, isNew]);
+
   // Live Risk Calculation
   const watchedValues = form.watch();
-  const liveRisk = calculateRisk({
+  const liveRisk = riskConfig ? calculateRisk({
     pep: watchedValues.pep || false,
     country: watchedValues.country || "",
     industry: watchedValues.industry || "",
     job: watchedValues.job || "",
-  }, riskConfig);
+  }, riskConfig) : { score: 0, band: 'GREEN' as const, nextReviewMonths: 12, factors: [] };
 
-  function onSubmit(data: z.infer<typeof clientSchema>) {
-    if (isNew) {
-      addClient(data);
-      toast({ title: "Client Created", description: "Client onboarding completed successfully." });
-      setLocation("/clients");
-    } else if (existingClient) {
-      updateClient(existingClient.id, data);
-      toast({ title: "Client Updated", description: "Risk score and schedule updated." });
+  async function onSubmit(data: z.infer<typeof clientSchema>) {
+    try {
+      if (isNew) {
+        const newClient = await clientsAPI.create(data);
+        toast({ title: "Client Created", description: "Client onboarding completed successfully." });
+        setLocation("/clients");
+      } else if (client) {
+        const updated = await clientsAPI.update(client.id, data);
+        setClient(updated);
+        toast({ title: "Client Updated", description: "Risk score and schedule updated." });
+      }
+    } catch (error) {
+      console.error("Failed to save client:", error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to save client", 
+        variant: "destructive" 
+      });
     }
   }
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleDownload = (filename: string) => {
-    toast({
-      title: "Downloading Document",
-      description: `Starting download for ${filename}...`,
-    });
-    // Mock download delay
-    setTimeout(() => {
-       toast({
+  const handleDownload = async (docId: string, filename: string) => {
+    if (!client) return;
+    try {
+      toast({
+        title: "Downloading Document",
+        description: `Starting download for ${filename}...`,
+      });
+      await documentsAPI.download(client.id, docId, filename);
+      toast({
         title: "Download Complete",
         description: `${filename} has been saved to your device.`,
-        variant: "default",
       });
-    }, 1500);
+    } catch (error) {
+      console.error("Download failed:", error);
+      toast({
+        title: "Download Failed",
+        description: "Could not download the document.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleGenerateReport = async () => {
+    if (!client) return;
+    
     toast({
       title: "Generating Risk Report",
       description: "Requesting report from server...",
     });
 
     try {
-      // We attempt to fetch the real report as requested.
-      // Since the backend is not implemented in this prototype, this will likely fail or return 404.
-      // This implementation fulfills the request to "fetch the PDF from /api/clients/:id/report"
-      const response = await fetch(`/api/clients/${existingClient?.id}/report`);
-      
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
-      }
-
-      const blob = await response.blob();
+      const blob = await reportsAPI.generate(client.id);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `KYC_Report_${existingClient?.id}.pdf`;
+      a.download = `KYC_Report_${client.firstName}_${client.lastName}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -120,20 +190,19 @@ export default function ClientDetailPage() {
       toast({
         title: "Report Ready",
         description: "KYC Risk Report has been generated and downloaded.",
-        variant: "default",
       });
     } catch (error) {
       console.error("Report generation failed:", error);
       toast({
         title: "Generation Failed",
-        description: "Could not retrieve report from server (Backend not connected).",
+        description: "Could not generate report from server.",
         variant: "destructive",
       });
     }
   };
 
   const handleUploadClick = () => {
-    if (!existingClient) {
+    if (!client) {
         toast({
             title: "Cannot Upload",
             description: "Please create the client before uploading documents.",
@@ -144,40 +213,58 @@ export default function ClientDetailPage() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !existingClient) return;
+    if (!file || !client) return;
 
-    // Extract real file metadata
-    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-    const fileData = {
-      name: file.name,
-      size: `${fileSizeMB} MB`,
-      type: file.type
-    };
+    try {
+      const newDoc = await documentsAPI.upload(client.id, file);
+      setDocuments([...documents, newDoc]);
+      
+      toast({
+          title: "File Uploaded",
+          description: `${file.name} has been successfully attached.`,
+      });
+    } catch (error) {
+      console.error("Upload failed:", error);
+      toast({
+          title: "Upload Failed",
+          description: "Could not upload the file.",
+          variant: "destructive"
+      });
+    }
 
-    addDocument(existingClient.id, fileData);
-    
-    toast({
-        title: "File Uploaded",
-        description: `${file.name} has been successfully attached.`,
-    });
-
-    // Reset input
     event.target.value = "";
   };
 
-  const handleDeleteDocument = (docId: string, docName: string) => {
-     if (!existingClient) return;
-     deleteDocument(existingClient.id, docId);
-     toast({
-         title: "Document Deleted",
-         description: `${docName} has been removed.`,
-         variant: "destructive"
-     });
+  const handleDeleteDocument = async (docId: string, docName: string) => {
+     if (!client) return;
+     try {
+       await documentsAPI.delete(client.id, docId);
+       setDocuments(documents.filter(d => d.id !== docId));
+       toast({
+           title: "Document Deleted",
+           description: `${docName} has been removed.`,
+       });
+     } catch (error) {
+       console.error("Delete failed:", error);
+       toast({
+           title: "Delete Failed",
+           description: "Could not delete the document.",
+           variant: "destructive"
+       });
+     }
   };
 
-  if (!isNew && !existingClient) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-slate-500">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!isNew && !client) {
     return <div>Client not found</div>;
   }
 
@@ -191,10 +278,10 @@ export default function ClientDetailPage() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-slate-900 font-display">
-              {isNew ? "New Client Onboarding" : `${existingClient?.firstName} ${existingClient?.lastName}`}
+              {isNew ? "New Client Onboarding" : `${client?.firstName} ${client?.lastName}`}
             </h1>
             <p className="text-slate-500 text-sm">
-              {isNew ? "Complete the form to generate initial risk score." : `ID: ${existingClient?.id} • Last Updated: ${new Date(existingClient?.lastUpdated || "").toLocaleDateString()}`}
+              {isNew ? "Complete the form to generate initial risk score." : `ID: ${client?.id} • Last Updated: ${new Date(client?.lastUpdated || "").toLocaleDateString()}`}
             </p>
           </div>
         </div>
@@ -294,7 +381,7 @@ export default function ClientDetailPage() {
                                   <ScrollArea className="h-[200px]">
                                     {ALL_COUNTRIES.map(c => (
                                       <SelectItem key={c} value={c}>
-                                        {c} {riskConfig.highRiskCountries.includes(c) ? "(High Risk)" : ""}
+                                        {c} {riskConfig?.highRiskCountries?.includes(c) ? "(High Risk)" : ""}
                                       </SelectItem>
                                     ))}
                                   </ScrollArea>
@@ -334,7 +421,7 @@ export default function ClientDetailPage() {
                                   <ScrollArea className="h-[200px]">
                                     {ALL_INDUSTRIES.map(i => (
                                       <SelectItem key={i} value={i}>
-                                        {i} {riskConfig.highRiskIndustries.includes(i) ? "(High Risk)" : ""}
+                                        {i} {riskConfig?.highRiskIndustries?.includes(i) ? "(High Risk)" : ""}
                                       </SelectItem>
                                     ))}
                                   </ScrollArea>
@@ -399,11 +486,11 @@ export default function ClientDetailPage() {
                   />
                   <div 
                     onClick={handleUploadClick}
-                    className={`border-2 border-dashed border-slate-300 rounded-xl p-12 flex flex-col items-center justify-center text-slate-500 transition-all cursor-pointer ${!existingClient ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50 hover:border-primary/50'}`}
+                    className={`border-2 border-dashed border-slate-300 rounded-xl p-12 flex flex-col items-center justify-center text-slate-500 transition-all cursor-pointer ${!client ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50 hover:border-primary/50'}`}
                   >
                     <Upload className="w-12 h-12 mb-4 text-slate-400" />
                     <p className="font-medium text-slate-900">
-                        {existingClient ? "Drop files to upload" : "Create client to upload documents"}
+                        {client ? "Drop files to upload" : "Create client to upload documents"}
                     </p>
                     <p className="text-sm mt-1">PDF, JPG or PNG up to 15MB</p>
                   </div>
@@ -411,10 +498,10 @@ export default function ClientDetailPage() {
                   <div className="mt-6 space-y-3">
                     <h4 className="text-sm font-medium text-slate-900">Uploaded Files</h4>
                     
-                    {existingClient?.documents?.length === 0 ? (
+                    {documents.length === 0 ? (
                         <p className="text-sm text-slate-500 italic">No documents attached.</p>
                     ) : (
-                        existingClient?.documents?.map((doc) => (
+                        documents.map((doc) => (
                             <div key={doc.id} className="p-3 bg-slate-50 rounded-lg border flex items-center justify-between group hover:bg-slate-100 transition-colors">
                               <div className="flex items-center gap-3">
                                 <FileText className="w-5 h-5 text-primary" />
@@ -427,7 +514,7 @@ export default function ClientDetailPage() {
                                  <Button variant="ghost" size="sm" onClick={() => window.open('#')}>
                                    <Eye className="w-4 h-4 mr-1" /> View
                                  </Button>
-                                 <Button variant="outline" size="sm" onClick={() => handleDownload(doc.name)}>
+                                 <Button variant="outline" size="sm" onClick={() => handleDownload(doc.id, doc.name)}>
                                    <Download className="w-4 h-4 mr-1" /> Download
                                  </Button>
                                  <Button 
