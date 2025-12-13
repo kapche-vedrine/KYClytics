@@ -94,7 +94,11 @@ export default function ClientDetailPage() {
             pep: clientData.pep,
           });
 
-          const docsResponse = await fetch(`/api/clients/${params.id}/documents`);
+          const docsResponse = await fetch(`/api/clients/${params.id}/documents`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+            }
+          });
           if (docsResponse.ok) {
             const docsData = await docsResponse.json();
             setDocuments(docsData);
